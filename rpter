@@ -1,0 +1,143 @@
+#!/usr/bin/python3
+
+import json
+import os
+import email
+import gzip
+import zipfile
+import io
+import argparse
+import shutil
+import datetime
+import dateutil.tz
+
+import xmltodict
+
+count = {
+    "tlsrpt_good": 0,
+    "tlsrpt_bad": 0,
+    "spf_bad": 0,
+    "spf_good": 0,
+    "dkim_bad": 0,
+    "dkim_good": 0,
+}
+
+
+def ts2local(ts):
+    ts = int(ts)
+    dt = datetime.datetime.utcfromtimestamp(ts)
+    dt = dt.replace(tzinfo=dateutil.tz.tzutc())
+    dt = dt.astimezone(dateutil.tz.tzlocal())
+    return dt
+
+
+def tlsrptparse(indata):
+    j = json.loads(indata)
+    for p in j["policies"]:
+        count["tlsrpt_good"] += p["summary"]["total-successful-session-count"]
+        count["tlsrpt_bad"] += p["summary"]["total-failure-session-count"]
+
+
+def dmarc(indata):
+    j = xmltodict.parse(indata)
+    if "record" not in j["feedback"]:
+        return
+    recs = j["feedback"]["record"]
+    if isinstance(recs, dict):
+        recs = [recs]
+
+    org = j["feedback"]["report_metadata"]["org_name"]
+    begin = ts2local(j["feedback"]["report_metadata"]["date_range"]["begin"])
+    end = ts2local(j["feedback"]["report_metadata"]["date_range"]["end"])
+
+    for r in recs:
+        rows = r["row"]
+
+        if isinstance(rows, dict):
+            rows = [rows]
+
+        for row in rows:
+            pol = row["policy_evaluated"]
+            if pol["dkim"] == "pass":
+                count["dkim_good"] += 1
+            else:
+                print(f"DKIM did not pass ({pol['dkim']}) from {org}")
+                print(f"Timeframe {begin} - {end}\n{r}\n")
+                count["dkim_bad"] += 1
+            if pol["spf"] == "pass":
+                count["spf_good"] += 1
+            else:
+                print(f"SPF did not pass ({pol['spf']}) from {org}")
+                print(f"Timeframe {begin} - {end}\n{r}\n")
+                count["spf_bad"] += 1
+
+
+def parser(filename, indata):
+    if filename.endswith(".json"):
+        # this is tls rpt
+        tlsrptparse(indata)
+
+    if filename.endswith(".xml"):
+        # this is dmarc
+        try:
+            dmarc(indata)
+        except KeyError:
+            print(f"failure with {filename}")
+            print(indata.decode())
+
+
+ap = argparse.ArgumentParser()
+ap.add_argument("dirs", nargs="*", help="Path to maildirs to check")
+ap.add_argument("-v", "--verbose", action="store_true", help="show also good results")
+ap.add_argument("-a,", "--archive", help="Dir to store archived versions")
+args = ap.parse_args()
+
+if args.archive:
+    now = datetime.datetime.now()
+    now = now.replace(tzinfo=dateutil.tz.tzlocal())
+    now = now.isoformat(timespec="minutes")
+    nowdir = f"{args.archive}/{now}"
+
+for mdir in args.dirs:
+    for fmail in os.listdir(mdir):
+        if fmail.startswith("."):
+            # skip hidden files
+            continue
+        with open(mdir + fmail, "rb") as f:
+            e = email.message_from_binary_file(f)
+            dparts = 0
+            for part in e.walk():
+                ct = part.get_content_type()
+                fn = part.get_filename()
+                if not isinstance(fn, str):
+                    continue
+                if fn.endswith(".gz"):
+                    if fn.endswith(".gz"):
+                        fn = fn[0:-3]
+                    data = gzip.decompress(part.get_payload(decode=True))
+                    dparts += 1
+                    parser(fn, data)
+
+                if ct == "application/zip":
+                    bdata = part.get_payload(decode=True)
+                    ifo = io.BytesIO(bdata)
+                    with zipfile.ZipFile(ifo) as fzip:
+                        for x in fzip.namelist():
+                            data = fzip.read(x)
+                            dparts += 1
+                            parser(x, data)
+            if dparts == 0:
+                print(f"WARNING: No data found in {fmail}")
+            if dparts > 1:
+                print(f"WARNING: {dparts} files found, expected 1")
+        if args.archive:
+            if not os.path.isdir(nowdir):
+                os.mkdir(nowdir)
+            shutil.move(mdir + fmail, nowdir)
+
+for k, v in count.items():
+    if v == 0:
+        continue
+    if not args.verbose and k.endswith("good"):
+        continue
+    print(f"{k} {v}")
