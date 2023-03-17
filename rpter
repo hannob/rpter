@@ -13,14 +13,10 @@ import dateutil.tz
 
 import xmltodict
 
-count = {
-    "tlsrpt_good": 0,
-    "tlsrpt_bad": 0,
-    "spf_bad": 0,
-    "spf_good": 0,
-    "dkim_bad": 0,
-    "dkim_good": 0,
-}
+count = {}
+
+fcount = {}
+tcount = {}
 
 
 def ts2local(ts):
@@ -31,11 +27,43 @@ def ts2local(ts):
     return dt
 
 
+def xadd(type, dfrom, org, n=1):
+    if not type in fcount:
+        fcount[type] = {}
+    if not dfrom in fcount[type]:
+        fcount[type][dfrom] = 0
+
+    fcount[type][dfrom] += n
+
+    if not type in tcount:
+        tcount[type] = {}
+    if not org in tcount[type]:
+        tcount[type][org] = 0
+
+    tcount[type][org] += n
+
+    if not type in count:
+        count[type] = 0
+    count[type] += n
+
+
 def tlsrptparse(indata):
     j = json.loads(indata)
     for p in j["policies"]:
-        count["tlsrpt_good"] += p["summary"]["total-successful-session-count"]
-        count["tlsrpt_bad"] += p["summary"]["total-failure-session-count"]
+        if p["summary"]["total-successful-session-count"] > 0:
+            xadd(
+                "tlsrpt_good",
+                p["policy"]["policy-domain"],
+                j["organization-name"],
+                p["summary"]["total-successful-session-count"],
+            )
+        if p["summary"]["total-failure-session-count"] > 0:
+            xadd(
+                "tlsrpt_good",
+                p["policy"]["policy-domain"],
+                j["organization-name"],
+                p["summary"]["total-failure-session-count"],
+            )
 
 
 def dmarc(indata):
@@ -59,17 +87,17 @@ def dmarc(indata):
         for row in rows:
             pol = row["policy_evaluated"]
             if pol["dkim"] == "pass":
-                count["dkim_good"] += 1
+                xadd("dkim_good", r["identifiers"]["header_from"], org)
             else:
                 print(f"DKIM did not pass ({pol['dkim']}) from {org}")
                 print(f"Timeframe {begin} - {end}\n{r}\n")
-                count["dkim_bad"] += 1
+                xadd("dkim_bad", r["identifiers"]["header_from"], org)
             if pol["spf"] == "pass":
-                count["spf_good"] += 1
+                xadd("spf_good", r["identifiers"]["header_from"], org)
             else:
                 print(f"SPF did not pass ({pol['spf']}) from {org}")
                 print(f"Timeframe {begin} - {end}\n{r}\n")
-                count["spf_bad"] += 1
+                xadd("spf_bad", r["identifiers"]["header_from"], org)
 
 
 def parser(filename, indata):
@@ -135,9 +163,13 @@ for mdir in args.dirs:
                 os.mkdir(nowdir)
             shutil.move(mdir + fmail, nowdir)
 
-for k, v in count.items():
-    if v == 0:
-        continue
-    if not args.verbose and k.endswith("good"):
-        continue
-    print(f"{k} {v}")
+if count != {}:
+    print("")
+    print("All:")
+    print(json.dumps(dict(sorted(count.items())), indent=2))
+    print("")
+    print("Grouped by from domain:")
+    print(json.dumps(dict(sorted(fcount.items())), indent=2))
+    print("")
+    print("Grouped by reporting org:")
+    print(json.dumps(dict(sorted(tcount.items())), indent=2))
