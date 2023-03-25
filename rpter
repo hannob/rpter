@@ -18,6 +18,9 @@ count = {}
 fcount = {}
 tcount = {}
 
+failmsg = ""
+warnmsg = ""
+
 
 def ts2local(ts):
     ts = int(ts)
@@ -67,6 +70,7 @@ def tlsrptparse(indata):
 
 
 def dmarc(indata):
+    global failmsg
     j = xmltodict.parse(indata)
     if "record" not in j["feedback"]:
         return
@@ -89,18 +93,19 @@ def dmarc(indata):
             if pol["dkim"] == "pass":
                 xadd("dkim_good", r["identifiers"]["header_from"], org)
             else:
-                print(f"DKIM did not pass ({pol['dkim']}) from {org}")
-                print(f"Timeframe {begin} - {end}\n{r}\n")
+                failmsg += f"DKIM did not pass ({pol['dkim']}) from {org}\n"
+                failmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
                 xadd("dkim_bad", r["identifiers"]["header_from"], org)
             if pol["spf"] == "pass":
                 xadd("spf_good", r["identifiers"]["header_from"], org)
             else:
-                print(f"SPF did not pass ({pol['spf']}) from {org}")
-                print(f"Timeframe {begin} - {end}\n{r}\n")
+                failmsg += f"SPF did not pass ({pol['spf']}) from {org}\n"
+                failmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
                 xadd("spf_bad", r["identifiers"]["header_from"], org)
 
 
 def parser(filename, indata):
+    global warnmsg
     if filename.endswith(".json"):
         # this is tls rpt
         tlsrptparse(indata)
@@ -109,9 +114,8 @@ def parser(filename, indata):
         # this is dmarc
         try:
             dmarc(indata)
-        except KeyError:
-            print(f"failure with {filename}")
-            print(indata.decode())
+        except KeyError as e:
+            warnmsg += f"Incorrect reporting format in {filename}, key {str(e)}\n"
 
 
 ap = argparse.ArgumentParser()
@@ -155,16 +159,15 @@ for mdir in args.dirs:
                             dparts += 1
                             parser(x, data)
             if dparts == 0:
-                print(f"WARNING: No data found in {fmail}")
+                warnmsg += f"WARNING: No data found in {fmail}\n"
             if dparts > 1:
-                print(f"WARNING: {dparts} files found, expected 1")
+                warnmsg += f"WARNING: {dparts} files found, expected 1\n"
         if args.archive:
             if not os.path.isdir(nowdir):
                 os.mkdir(nowdir)
             shutil.move(mdir + fmail, nowdir)
 
 if count != {}:
-    print("")
     print("All:")
     print(json.dumps(dict(sorted(count.items())), indent=2))
     print("")
@@ -173,3 +176,7 @@ if count != {}:
     print("")
     print("Grouped by reporting org:")
     print(json.dumps(dict(sorted(tcount.items())), indent=2))
+    print("")
+    print(warnmsg)
+    print("")
+    print(failmsg)
