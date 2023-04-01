@@ -18,7 +18,8 @@ count = {}
 fcount = {}
 tcount = {}
 
-failmsg = ""
+dkimfailmsg = ""
+spffailmsg = ""
 warnmsg = ""
 
 
@@ -70,7 +71,7 @@ def tlsrptparse(indata):
 
 
 def dmarc(indata):
-    global failmsg
+    global dkimfailmsg, spffailmsg
     j = xmltodict.parse(indata)
     if "record" not in j["feedback"]:
         return
@@ -93,14 +94,14 @@ def dmarc(indata):
             if pol["dkim"] == "pass":
                 xadd("dkim_good", r["identifiers"]["header_from"], org)
             else:
-                failmsg += f"DKIM did not pass ({pol['dkim']}) from {org}\n"
-                failmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
+                dkimfailmsg += f"DKIM did not pass ({pol['dkim']}) from {org}\n"
+                dkimfailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
                 xadd("dkim_bad", r["identifiers"]["header_from"], org)
             if pol["spf"] == "pass":
                 xadd("spf_good", r["identifiers"]["header_from"], org)
             else:
-                failmsg += f"SPF did not pass ({pol['spf']}) from {org}\n"
-                failmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
+                spffailmsg += f"SPF did not pass ({pol['spf']}) from {org}\n"
+                spffailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
                 xadd("spf_bad", r["identifiers"]["header_from"], org)
 
 
@@ -179,4 +180,5 @@ if count != {}:
     print("")
     print(warnmsg)
     print("")
-    print(failmsg)
+    print(dkimfailmsg, end="")
+    print(spffailmsg, end="")
