@@ -124,7 +124,7 @@ def parser(filename, indata):
 
 
 ap = argparse.ArgumentParser()
-ap.add_argument("dirs", nargs="*", help="Path to maildirs to check")
+ap.add_argument("dirs", nargs="+", help="Path to maildirs to check")
 ap.add_argument("-v", "--verbose", action="store_true", help="show also good results")
 ap.add_argument("-a,", "--archive", help="Dir to store archived versions")
 args = ap.parse_args()
