@@ -26,9 +26,7 @@ warnmsg = ""
 
 def ts2local(ts):
     ts = int(ts)
-    dt = datetime.datetime.utcfromtimestamp(ts)
-    dt = dt.replace(tzinfo=dateutil.tz.tzutc())
-    dt = dt.astimezone(dateutil.tz.tzlocal())
+    dt = datetime.datetime.fromtimestamp(ts, dateutil.tz.tzlocal())
     return dt
 
 
