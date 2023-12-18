@@ -1,16 +1,16 @@
 #!/usr/bin/python3
 
-import json
-import os
+import argparse
+import datetime
 import email
 import gzip
-import zipfile
 import io
-import argparse
+import json
+import os
 import shutil
-import datetime
-import dateutil.tz
+import zipfile
 
+import dateutil.tz
 import xmltodict
 
 count = {}
