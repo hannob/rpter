@@ -9,6 +9,7 @@ import io
 import json
 import os
 import shutil
+import sys
 import zipfile
 
 import dateutil.tz
@@ -131,6 +132,9 @@ if args.archive:
     nowdir = f"{args.archive}/{now}"
 
 for mdir in args.dirs:
+    for d in ["cur", "new", "tmp"]:
+        if not os.path.isdir(f"{mdir}/{d}"):
+            sys.exit(f"Error: {mdir} not a maildir")
     for fmail in glob.glob(f"{mdir}/cur/*") + glob.glob(f"{mdir}/new/*"):
         if fmail.startswith("."):
             # skip hidden files
