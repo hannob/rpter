@@ -28,28 +28,27 @@ warnmsg = ""
 
 def ts2local(ts):
     ts = int(ts)
-    dt = datetime.datetime.fromtimestamp(ts, dateutil.tz.tzlocal())
-    return dt
+    return datetime.datetime.fromtimestamp(ts, dateutil.tz.tzlocal())
 
 
-def xadd(type, dfrom, org, n=1):
-    if type not in fcount:
-        fcount[type] = {}
-    if dfrom not in fcount[type]:
-        fcount[type][dfrom] = 0
+def xadd(xtype, dfrom, org, n=1):
+    if xtype not in fcount:
+        fcount[xtype] = {}
+    if dfrom not in fcount[xtype]:
+        fcount[xtype][dfrom] = 0
 
-    fcount[type][dfrom] += n
+    fcount[xtype][dfrom] += n
 
-    if type not in tcount:
-        tcount[type] = {}
-    if org not in tcount[type]:
-        tcount[type][org] = 0
+    if xtype not in tcount:
+        tcount[xtype] = {}
+    if org not in tcount[xtype]:
+        tcount[xtype][org] = 0
 
-    tcount[type][org] += n
+    tcount[xtype][org] += n
 
-    if type not in count:
-        count[type] = 0
-    count[type] += n
+    if xtype not in count:
+        count[xtype] = 0
+    count[xtype] += n
 
 
 def tlsrptparse(indata):
@@ -108,7 +107,6 @@ def dmarc(indata):
                 spffailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
 
 
-
 def parser(filename, indata):
     global warnmsg
     if filename.endswith(".json"):
@@ -120,7 +118,7 @@ def parser(filename, indata):
         try:
             dmarc(indata)
         except KeyError as e:
-            warnmsg += f"Incorrect reporting format in {filename}, key {str(e)}\n"
+            warnmsg += f"Incorrect reporting format in {filename}, key {e}\n"
 
 
 ap = argparse.ArgumentParser()
@@ -130,8 +128,7 @@ ap.add_argument("-a,", "--archive", help="Dir to store archived versions")
 args = ap.parse_args()
 
 if args.archive:
-    now = datetime.datetime.now()
-    now = now.replace(tzinfo=dateutil.tz.tzlocal())
+    now = datetime.datetime.now(tz=dateutil.tz.tzlocal())
     now = now.isoformat(timespec="minutes")
     nowdir = f"{args.archive}/{now}"
 
