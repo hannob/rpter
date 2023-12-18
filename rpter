@@ -22,6 +22,7 @@ tcount = {}
 
 dkimfailmsg = ""
 spffailmsg = ""
+dispositionfailmsg = ""
 warnmsg = ""
 
 
@@ -71,7 +72,7 @@ def tlsrptparse(indata):
 
 
 def dmarc(indata):
-    global dkimfailmsg, spffailmsg
+    global dkimfailmsg, spffailmsg, dispositionfailmsg
     j = xmltodict.parse(indata)
     if "record" not in j["feedback"]:
         return
@@ -91,18 +92,21 @@ def dmarc(indata):
 
         for row in rows:
             pol = row["policy_evaluated"]
-            if pol["dkim"] == "pass":
-                xadd("dkim_good", r["identifiers"]["header_from"], org)
-            else:
+            for x in ["dkim", "spf", "disposition"]:
+                xadd(f"{x}_{pol[x]}", r["identifiers"]["header_from"], org)
+
+            if pol["disposition"] != "none":
+                dispositionfailmsg += f"Disposition {pol['disposition']} from {org}\n"
+                dispositionfailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
+
+            if pol["dkim"] != "pass":
                 dkimfailmsg += f"DKIM did not pass ({pol['dkim']}) from {org}\n"
                 dkimfailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
-                xadd("dkim_bad", r["identifiers"]["header_from"], org)
-            if pol["spf"] == "pass":
-                xadd("spf_good", r["identifiers"]["header_from"], org)
-            else:
+
+            if pol["spf"] != "pass":
                 spffailmsg += f"SPF did not pass ({pol['spf']}) from {org}\n"
                 spffailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
-                xadd("spf_bad", r["identifiers"]["header_from"], org)
+
 
 
 def parser(filename, indata):
@@ -136,9 +140,6 @@ for mdir in args.dirs:
         if not os.path.isdir(f"{mdir}/{d}"):
             sys.exit(f"Error: {mdir} not a maildir")
     for fmail in glob.glob(f"{mdir}/cur/*") + glob.glob(f"{mdir}/new/*"):
-        if fmail.startswith("."):
-            # skip hidden files
-            continue
         with open(fmail, "rb") as f:
             e = email.message_from_binary_file(f)
             dparts = 0
@@ -186,5 +187,6 @@ if count != {}:
     print("")
     print(warnmsg)
     print("")
+    print(dispositionfailmsg, end="")
     print(dkimfailmsg, end="")
     print(spffailmsg, end="")
