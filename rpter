@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import email
+import glob
 import gzip
 import io
 import json
@@ -132,11 +133,11 @@ if args.archive:
     nowdir = f"{args.archive}/{now}"
 
 for mdir in args.dirs:
-    for fmail in os.listdir(mdir):
+    for fmail in glob.glob(f"{mdir}/cur/*") + glob.glob(f"{mdir}/new/*"):
         if fmail.startswith("."):
             # skip hidden files
             continue
-        with open(mdir + fmail, "rb") as f:
+        with open(fmail, "rb") as f:
             e = email.message_from_binary_file(f)
             dparts = 0
             for part in e.walk():
@@ -166,7 +167,10 @@ for mdir in args.dirs:
         if args.archive:
             if not os.path.isdir(nowdir):
                 os.mkdir(nowdir)
-            shutil.move(mdir + fmail, nowdir)
+                os.mkdir(f"{nowdir}/cur")
+                os.mkdir(f"{nowdir}/new")
+                os.mkdir(f"{nowdir}/tmp")
+            shutil.move(fmail, f"{nowdir}/cur")
 
 if count != {}:
     print("All:")
