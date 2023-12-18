@@ -32,21 +32,21 @@ def ts2local(ts):
 
 
 def xadd(type, dfrom, org, n=1):
-    if not type in fcount:
+    if type not in fcount:
         fcount[type] = {}
-    if not dfrom in fcount[type]:
+    if dfrom not in fcount[type]:
         fcount[type][dfrom] = 0
 
     fcount[type][dfrom] += n
 
-    if not type in tcount:
+    if type not in tcount:
         tcount[type] = {}
-    if not org in tcount[type]:
+    if org not in tcount[type]:
         tcount[type][org] = 0
 
     tcount[type][org] += n
 
-    if not type in count:
+    if type not in count:
         count[type] = 0
     count[type] += n
 
