@@ -20,9 +20,7 @@ count = {}
 fcount = {}
 tcount = {}
 
-dkimfailmsg = ""
-spffailmsg = ""
-dispositionfailmsg = ""
+failmsg = {"disposition": "", "dkim": "", "spf": ""}
 warnmsg = ""
 
 
@@ -94,17 +92,19 @@ def dmarc(indata):
             for x in ["dkim", "spf", "disposition"]:
                 xadd(f"{x}_{pol[x]}", r["identifiers"]["header_from"], org)
 
-            if pol["disposition"] != "none":
-                dispositionfailmsg += f"Disposition {pol['disposition']} from {org}\n"
-                dispositionfailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
-
-            if pol["dkim"] != "pass":
-                dkimfailmsg += f"DKIM did not pass ({pol['dkim']}) from {org}\n"
-                dkimfailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
-
+            msg = ""
             if pol["spf"] != "pass":
-                spffailmsg += f"SPF did not pass ({pol['spf']}) from {org}\n"
-                spffailmsg += f"Timeframe {begin} - {end}\n{r}\n\n"
+                msg = f"SPF did not pass ({pol['spf']}) from {org}\n"
+                mtype = "spf"
+            if pol["dkim"] != "pass":
+                msg = f"DKIM did not pass ({pol['dkim']}) from {org}\n" + msg
+                mtype = "dkim"
+            if pol["disposition"] != "none":
+                msg = f"Disposition {pol['disposition']} from {org}\n" + msg
+                mtype = "disposition"
+            if msg != "":
+                msg += f"Timeframe {begin} - {end}\n{r}\n\n"
+                failmsg[mtype] += msg
 
 
 def parser(filename, indata):
@@ -184,6 +184,6 @@ if count != {}:
     print("")
     print(warnmsg)
     print("")
-    print(dispositionfailmsg, end="")
-    print(dkimfailmsg, end="")
-    print(spffailmsg, end="")
+    print(failmsg["disposition"], end="")
+    print(failmsg["dkim"], end="")
+    print(failmsg["spf"], end="")
