@@ -7,6 +7,7 @@ import glob
 import gzip
 import io
 import json
+import mailbox
 import os
 import shutil
 import sys
@@ -166,10 +167,7 @@ for mdir in args.dirs:
                 warnmsg += f"WARNING: {dparts} files found, expected 1\n"
         if args.archive:
             if not os.path.isdir(nowdir):
-                os.mkdir(nowdir)
-                os.mkdir(f"{nowdir}/cur")
-                os.mkdir(f"{nowdir}/new")
-                os.mkdir(f"{nowdir}/tmp")
+                mailbox.Maildir(nowdir, create=True)
             shutil.move(fmail, f"{nowdir}/cur")
 
 if count != {}:
