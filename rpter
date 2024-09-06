@@ -71,7 +71,7 @@ def tlsrptparse(indata):
             )
 
 
-def dmarc(indata):
+def dmarc(indata, fmail):
     global dkimfailmsg, spffailmsg, dispositionfailmsg
     j = xmltodict.parse(indata)
     if "record" not in j["feedback"]:
@@ -106,11 +106,11 @@ def dmarc(indata):
                 msg = f"Disposition {pol['disposition']} from {org}\n" + msg
                 mtype = "disposition"
             if msg != "":
-                msg += f"Timeframe {begin} - {end}\n{r}\n\n"
+                msg += f"Timeframe {begin} - {end}\n{fmail}: {r}\n\n"
                 failmsg[mtype] += msg
 
 
-def parser(filename, indata):
+def parser(filename, indata, fmail):
     global warnmsg
     if filename.endswith(".json"):
         # this is tls rpt
@@ -119,7 +119,7 @@ def parser(filename, indata):
     if filename.endswith(".xml"):
         # this is dmarc
         try:
-            dmarc(indata)
+            dmarc(indata, fmail)
         except KeyError as e:
             warnmsg += f"Incorrect reporting format in {filename}, key {e}\n"
 
@@ -128,7 +128,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("dirs", nargs="+", help="Path to maildirs to check")
 ap.add_argument("-v", "--verbose", action="store_true", help="show also good results")
 ap.add_argument("-a,", "--archive", help="Dir to store archived versions")
-ap.add_argument("-p", "--policies", help="DMARC policies to display (default: dkim,spf)")
+ap.add_argument("-p", "--policies", help="DMARC policies to show (default: dkim,spf)")
 args = ap.parse_args()
 
 if args.policies:
@@ -157,7 +157,7 @@ for mdir in args.dirs:
                         fn = fn[0:-3]
                     data = gzip.decompress(part.get_payload(decode=True))
                     dparts += 1
-                    parser(fn, data)
+                    parser(fn, data, fmail)
 
                 if ct == "application/zip":
                     bdata = part.get_payload(decode=True)
@@ -166,7 +166,7 @@ for mdir in args.dirs:
                         for x in fzip.namelist():
                             data = fzip.read(x)
                             dparts += 1
-                            parser(x, data)
+                            parser(x, data, fmail)
             if dparts == 0:
                 warnmsg += f"WARNING: No data found in {fmail}\n"
             if dparts > 1:
@@ -177,7 +177,7 @@ for mdir in args.dirs:
             shutil.move(fmail, f"{nowdir}/cur")
 
 if count != {}:
-    if(failmsg["disposition"] != ""):
+    if failmsg["disposition"] != "":
         print("WARNINGS disposition:")
         print(failmsg["disposition"], end="")
     print("All:")
