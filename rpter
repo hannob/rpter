@@ -24,6 +24,8 @@ tcount = {}
 failmsg = {"disposition": "", "dkim": "", "spf": ""}
 warnmsg = ""
 
+policies = ["dkim", "spf"]
+
 
 def ts2local(ts):
     ts = int(ts)
@@ -90,7 +92,7 @@ def dmarc(indata):
 
         for row in rows:
             pol = row["policy_evaluated"]
-            for x in ["dkim", "spf", "disposition"]:
+            for x in policies:
                 xadd(f"{x}_{pol[x]}", r["identifiers"]["header_from"], org)
 
             msg = ""
@@ -126,7 +128,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument("dirs", nargs="+", help="Path to maildirs to check")
 ap.add_argument("-v", "--verbose", action="store_true", help="show also good results")
 ap.add_argument("-a,", "--archive", help="Dir to store archived versions")
+ap.add_argument("-p", "--policies", help="DMARC policies to display (default: dkim,spf)")
 args = ap.parse_args()
+
+if args.policies:
+    policies = args.policies.split(",")
 
 if args.archive:
     now = datetime.datetime.now(tz=dateutil.tz.tzlocal())
@@ -171,6 +177,9 @@ for mdir in args.dirs:
             shutil.move(fmail, f"{nowdir}/cur")
 
 if count != {}:
+    if(failmsg["disposition"] != ""):
+        print("WARNINGS disposition:")
+        print(failmsg["disposition"], end="")
     print("All:")
     print(json.dumps(dict(sorted(count.items())), indent=2))
     print("")
@@ -182,6 +191,5 @@ if count != {}:
     print("")
     print(warnmsg)
     print("")
-    print(failmsg["disposition"], end="")
     print(failmsg["dkim"], end="")
     print(failmsg["spf"], end="")
