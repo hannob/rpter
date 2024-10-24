@@ -16,6 +16,14 @@ import zipfile
 import dateutil.tz
 import xmltodict
 
+try:
+    import MySQLdb
+except ModuleNotFoundError:
+    # okay if we do not use sql mode
+    pass
+
+cc = 0
+
 count = {}
 
 fcount = {}
@@ -71,8 +79,18 @@ def tlsrptparse(indata):
             )
 
 
-def dmarc(indata, fmail):
-    global dkimfailmsg, spffailmsg, dispositionfailmsg
+def esc(instr):
+    return MySQLdb._mysql.escape_string(instr).decode()
+
+
+def dmarc(indata, fmail, sqlmode):
+    global dkimfailmsg, spffailmsg, dispositionfailmsg, cc
+
+    cc += 1
+    if args.sql:
+        with open(f"reports/{cc}", "wb") as f:
+            f.write(indata)
+
     j = xmltodict.parse(indata)
     if "record" not in j["feedback"]:
         return
@@ -109,17 +127,27 @@ def dmarc(indata, fmail):
                 msg += f"Timeframe {begin} - {end}\n{fmail}: {r}\n\n"
                 failmsg[mtype] += msg
 
+            mailto = ""
+            if "envelope_to" in r["identifiers"]:
+                mailto = r["identifiers"]["envelope_to"]
+            mailfrom = r["identifiers"]["header_from"]
 
-def parser(filename, indata, fmail):
+            if sqlmode:
+                print(f"INSERT INTO rua (org,mfrom,mto,dkim,spf,disposition,count,start,end,report) VALUES ('{esc(org)}','{esc(mailfrom)}','{esc(mailto)}','{esc(pol["dkim"])}','{esc(pol["spf"])}','{esc(pol["disposition"])}',{esc(row["count"])},'{esc(str(begin)[0:-6])}','{esc(str(end)[0:-6])}',{cc});")
+
+
+def parser(filename, indata, fmail, sqlmode):
     global warnmsg
     if filename.endswith(".json"):
+        if sqlmode:  # does not support TLSRPT
+            return
         # this is tls rpt
         tlsrptparse(indata)
 
     if filename.endswith(".xml"):
         # this is dmarc
         try:
-            dmarc(indata, fmail)
+            dmarc(indata, fmail, sqlmode)
         except KeyError as e:
             warnmsg += f"Incorrect reporting format in {filename}, key {e}\n"
 
@@ -129,6 +157,7 @@ ap.add_argument("dirs", nargs="+", help="Path to maildirs to check")
 ap.add_argument("-v", "--verbose", action="store_true", help="show also good results")
 ap.add_argument("-a,", "--archive", help="Dir to store archived versions")
 ap.add_argument("-p", "--policies", help="DMARC policies to show (default: dkim,spf)")
+ap.add_argument("-s", "--sql", action="store_true", help="SQL Mode (writes reports to reports/ dir)")
 args = ap.parse_args()
 
 if args.policies:
@@ -138,6 +167,10 @@ if args.archive:
     now = datetime.datetime.now(tz=dateutil.tz.tzlocal())
     now = now.isoformat(timespec="minutes")
     nowdir = f"{args.archive}/{now}"
+
+if args.sql:
+    print("hello")
+    os.mkdir("reports")
 
 for mdir in args.dirs:
     for d in ["cur", "new", "tmp"]:
@@ -157,7 +190,7 @@ for mdir in args.dirs:
                         fn = fn[0:-3]
                     data = gzip.decompress(part.get_payload(decode=True))
                     dparts += 1
-                    parser(fn, data, fmail)
+                    parser(fn, data, fmail, args.sql)
 
                 if ct == "application/zip":
                     bdata = part.get_payload(decode=True)
@@ -166,7 +199,7 @@ for mdir in args.dirs:
                         for x in fzip.namelist():
                             data = fzip.read(x)
                             dparts += 1
-                            parser(x, data, fmail)
+                            parser(x, data, fmail, args.sql)
             if dparts == 0:
                 warnmsg += f"WARNING: No data found in {fmail}\n"
             if dparts > 1:
@@ -176,7 +209,7 @@ for mdir in args.dirs:
                 mailbox.Maildir(nowdir, create=True)
             shutil.move(fmail, f"{nowdir}/cur")
 
-if count != {}:
+if count != {} and not args.sql:
     if failmsg["disposition"] != "":
         print("WARNINGS disposition:")
         print(failmsg["disposition"], end="")
