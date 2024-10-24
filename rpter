@@ -169,7 +169,6 @@ if args.archive:
     nowdir = f"{args.archive}/{now}"
 
 if args.sql:
-    print("hello")
     os.mkdir("reports")
 
 for mdir in args.dirs:
