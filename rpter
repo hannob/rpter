@@ -123,7 +123,7 @@ def dmarc(indata, fmail, sqlmode):
             if pol["disposition"] != "none":
                 msg = f"Disposition {pol['disposition']} from {org}\n" + msg
                 mtype = "disposition"
-            if msg != "":
+            if msg:
                 msg += f"Timeframe {begin} - {end}\n{fmail}: {r}\n\n"
                 failmsg[mtype] += msg
 
@@ -133,7 +133,11 @@ def dmarc(indata, fmail, sqlmode):
             mailfrom = r["identifiers"]["header_from"]
 
             if sqlmode:
-                print(f"INSERT INTO rua (org,mfrom,mto,dkim,spf,disposition,count,start,end,report) VALUES ('{esc(org)}','{esc(mailfrom)}','{esc(mailto)}','{esc(pol["dkim"])}','{esc(pol["spf"])}','{esc(pol["disposition"])}',{esc(row["count"])},'{esc(str(begin)[0:-6])}','{esc(str(end)[0:-6])}',{cc});")
+                print(f"INSERT INTO rua (org,mfrom,mto,dkim,spf,disposition,count,start,end,report)"
+                      f" VALUES ('{esc(org)}','{esc(mailfrom)}','{esc(mailto)}',"
+                      f"'{esc(pol["dkim"])}','{esc(pol["spf"])}','{esc(pol["disposition"])}',"
+                      f"{esc(row["count"])},'{esc(str(begin)[0:-6])}','{esc(str(end)[0:-6])}',"
+                      f"{cc});")
 
 
 def parser(filename, indata, fmail, sqlmode):
@@ -157,7 +161,7 @@ ap.add_argument("dirs", nargs="+", help="Path to maildirs to check")
 ap.add_argument("-v", "--verbose", action="store_true", help="show also good results")
 ap.add_argument("-a,", "--archive", help="Dir to store archived versions")
 ap.add_argument("-p", "--policies", help="DMARC policies to show (default: dkim,spf)")
-ap.add_argument("-s", "--sql", action="store_true", help="SQL Mode (writes reports to reports/ dir)")
+ap.add_argument("-s", "--sql", action="store_true", help="SQL Mode (saves reports in reports/)")
 args = ap.parse_args()
 
 if args.policies:
@@ -208,20 +212,20 @@ for mdir in args.dirs:
                 mailbox.Maildir(nowdir, create=True)
             shutil.move(fmail, f"{nowdir}/cur")
 
-if count != {} and not args.sql:
+if count and not args.sql:
     if failmsg["disposition"] != "":
         print("WARNINGS disposition:")
         print(failmsg["disposition"], end="")
     print("All:")
     print(json.dumps(dict(sorted(count.items())), indent=2))
-    print("")
+    print()
     print("Grouped by from domain:")
     print(json.dumps(dict(sorted(fcount.items())), indent=2))
-    print("")
+    print()
     print("Grouped by reporting org:")
     print(json.dumps(dict(sorted(tcount.items())), indent=2))
-    print("")
+    print()
     print(warnmsg)
-    print("")
+    print()
     print(failmsg["dkim"], end="")
     print(failmsg["spf"], end="")
