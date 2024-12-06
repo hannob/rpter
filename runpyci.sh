@@ -17,4 +17,6 @@ flake8 --select=DUO --ignore=DUO107,DUO123,DUO131 $pyfiles
 pylint --disable=$PYLINTIG $pyfiles
 ruff check --line-length=100 --select=ALL --ignore=$RUFFIG $pyfiles
 
-[ -d tests ] && python -m unittest -v
+if [ -d tests ]; then
+	python -m unittest -v
+fi
