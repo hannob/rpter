@@ -135,8 +135,8 @@ def dmarc(indata, fmail, sqlmode):
             if sqlmode:
                 print(f"INSERT INTO rua (org,mfrom,mto,dkim,spf,disposition,count,start,end,report)"
                       f" VALUES ('{esc(org)}','{esc(mailfrom)}','{esc(mailto)}',"
-                      f"'{esc(pol["dkim"])}','{esc(pol["spf"])}','{esc(pol["disposition"])}',"
-                      f"{esc(row["count"])},'{esc(str(begin)[0:-6])}','{esc(str(end)[0:-6])}',"
+                      f"'{esc(pol['dkim'])}','{esc(pol['spf'])}','{esc(pol['disposition'])}',"
+                      f"{esc(row['count'])},'{esc(str(begin)[0:-6])}','{esc(str(end)[0:-6])}',"
                       f"{cc});")
 
 
