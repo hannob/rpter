@@ -130,7 +130,9 @@ def dmarc(indata, fmail, sqlmode):
             mailto = ""
             if "envelope_to" in r["identifiers"]:
                 mailto = r["identifiers"]["envelope_to"]
-            mailfrom = r["identifiers"]["header_from"]
+            mailfrom = ""
+            if "header_from" in r["identifiers"]:
+                mailfrom = r["identifiers"]["header_from"]
 
             if sqlmode:
                 print(f"INSERT INTO rua (org,mfrom,mto,dkim,spf,disposition,count,start,end,report)"
