@@ -80,7 +80,7 @@ def tlsrptparse(indata):
 
 
 def esc(instr):
-    return MySQLdb._mysql.escape_string(instr).decode()
+    return MySQLdb._mysql.escape_string(str(instr)).decode()
 
 
 def dmarc(indata, fmail, sqlmode):
@@ -127,12 +127,8 @@ def dmarc(indata, fmail, sqlmode):
                 msg += f"Timeframe {begin} - {end}\n{fmail}: {r}\n\n"
                 failmsg[mtype] += msg
 
-            mailto = ""
-            if "envelope_to" in r["identifiers"]:
-                mailto = r["identifiers"]["envelope_to"]
-            mailfrom = ""
-            if "header_from" in r["identifiers"]:
-                mailfrom = r["identifiers"]["header_from"]
+            mailto = r["identifiers"].get("envelope_to", "missing")
+            mailfrom = r["identifiers"].get("header_from", "missing")
 
             if sqlmode:
                 print(f"INSERT INTO rua (org,mfrom,mto,dkim,spf,disposition,count,start,end,report)"
