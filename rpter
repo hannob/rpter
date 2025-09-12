@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# SPDX-License-Identifier: 0BSD
 
 import argparse
 import datetime
