@@ -84,7 +84,7 @@ def esc(instr):
 
 
 def dmarc(indata, fmail, sqlmode):
-    global dkimfailmsg, spffailmsg, dispositionfailmsg, cc
+    global cc
 
     cc += 1
     if args.sql:
