@@ -78,7 +78,7 @@ def tlsrptparse(indata):
             )
         if p["summary"]["total-failure-session-count"] > 0:
             xadd(
-                "tlsrpt_good",
+                "tlsrpt_bad",
                 p["policy"]["policy-domain"],
                 j["organization-name"],
                 p["summary"]["total-failure-session-count"],
