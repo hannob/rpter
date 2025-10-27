@@ -64,6 +64,11 @@ def xadd(xtype, dfrom, org, n=1):
 def tlsrptparse(indata):
     j = json.loads(indata)
     for p in j["policies"]:
+        if "policy" not in p or "policy_domain" not in p["policy"] or \
+           "summary" not in p or "total-successful-session-count" not in p["summary"] or \
+           "total-failure-session-count" not in p["summary"]:
+            # invalid report
+            continue
         if p["summary"]["total-successful-session-count"] > 0:
             xadd(
                 "tlsrpt_good",
