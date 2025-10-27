@@ -1,4 +1,4 @@
-# last update: 2024-12-07
+# last update: 2025-10-08
 # https://github.com/hannob/codingstyle
 ---
 name: runpyci
@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        python-version: [3.9, 3.x, 3.14-dev]
+        python-version: [3.9, 3.x, 3.14]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
