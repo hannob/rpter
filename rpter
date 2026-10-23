@@ -10,6 +10,7 @@ import io
 import json
 import mailbox
 import os
+import pathlib
 import shutil
 import sys
 import zipfile
@@ -94,8 +95,7 @@ def dmarc(indata, fmail, sqlmode):
 
     cc += 1
     if args.sql:
-        with open(f"reports/{cc}", "wb") as f:
-            f.write(indata)
+        pathlib.Path(f"reports/{cc}").write_bytes(indata)
 
     j = xmltodict.parse(indata)
     if "record" not in j["feedback"]:
