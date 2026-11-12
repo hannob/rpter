@@ -216,6 +216,11 @@ for mdir in args.dirs:
                 mailbox.Maildir(nowdir, create=True)
             shutil.move(fmail, f"{nowdir}/cur")
 
+for k, v in fcount.items():
+    fcount[k] = sorted(v)
+for k, v in tcount.items():
+    tcount[k] = sorted(v)
+
 if count and not args.sql:
     if failmsg["disposition"] != "":
         print("WARNINGS disposition:")
